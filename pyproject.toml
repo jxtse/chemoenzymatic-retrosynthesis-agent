@@ -1,0 +1,14 @@
+[project]
+name = "chemoenzymatic-retrosynthesis-agent"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "zeep>=4.3.0",
+    "pandas>=2.2.3",
+    "pyarrow>=17.0.0",
+]
+
+[tool.setuptools]
+py-modules = ["main", "brenda_client", "unified_reaction_schema", "reaction_unifier"]
