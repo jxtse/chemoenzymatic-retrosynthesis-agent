@@ -5,12 +5,10 @@ build/
 dist/
 wheels/
 *.egg-info
-/bkms-data
 
 # Virtual environments
 .venv
 
 .env
 
-*.parquet
 *.jsonl
