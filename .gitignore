@@ -12,3 +12,9 @@ wheels/
 .env
 
 *.jsonl
+node-v24.11.1-linux-x64
+.claude-code-router
+
+# Large data files
+RetroBioCat/building_blocks.db
+*.db

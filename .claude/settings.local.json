@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python read.py)"
+      "Bash(python read.py)",
+      "Bash(sqlite3:*)",
+      "Bash(python3:*)"
     ],
     "deny": [],
     "ask": []
