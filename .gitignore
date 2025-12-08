@@ -15,6 +15,9 @@ wheels/
 node-v24.11.1-linux-x64
 .claude-code-router
 
-# Large data files
+# Large data files and model checkpoints
 RetroBioCat/building_blocks.db
+RetroBioCat/*.db
+READRetro/
+RetroBioCat/*.xlsx
 *.db
