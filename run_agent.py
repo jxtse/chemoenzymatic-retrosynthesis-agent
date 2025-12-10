@@ -291,9 +291,11 @@ def main():
     logging.getLogger('openai').setLevel(logging.WARNING)
     logging.getLogger('h5py').setLevel(logging.WARNING)
     logging.getLogger('tensorflow').setLevel(logging.WARNING)
+    logging.getLogger('pubchempy').setLevel(logging.INFO)  # 避免DEBUG信息过多
 
-    # 设置autogen日志级别
+    # 设置autogen日志级别 - 避免重复的成本警告
     logging.getLogger('autogen').setLevel(logging.WARNING)
+    logging.getLogger('autogen.oai.client').setLevel(logging.ERROR)  # 屏蔽模型成本警告
 
     # 设置文件日志
     log_dir = Path(args.log_dir)

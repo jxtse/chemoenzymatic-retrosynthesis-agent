@@ -1,45 +1,65 @@
 [project]
 name = "chemoenzymatic-retrosynthesis-agent"
 version = "0.1.0"
-description = "Add your description here"
+description = "AI agent for chemoenzymatic retrosynthesis planning with LLM-powered pathway design"
 readme = "README.md"
 requires-python = ">=3.10,<3.11"
 dependencies = [
+    # AI Agent框架
+    "pyautogen>=0.2,<0.3",
+    "openai>=1.0.0",
+
     # 数据处理与科学计算
-    "numpy>=1.26.0",
+    "numpy>=1.26.0,<1.27",
     "pandas>=2.2.3",
     "scipy>=1.11.0",
     "pyarrow>=17.0.0",
+
     # 深度学习框架
     "torch>=2.0.0",
-    # 化学信息学
+    "tensorflow>=2.8.0,<2.9",
+
+    # 化学信息学与逆合成
     "rdkit>=2023.9.1",
     "pubchempy>=1.0.4",
+    # Note: rbc2 (RetroBioCat 2.0) must be installed from GitHub:
+    # uv pip install git+https://github.com/willfinnigan/RetroBioCat-2.git
+
     # 图处理
     "networkx>=3.0",
+
     # API客户端
     "requests>=2.31.0",
-    "zeep>=4.3.0",
+    "requests-cache>=1.0.0",
+    "zeep>=4.3.0",  # SOAP API (BRENDA)
     "chembl-webresource-client>=0.10.0",
+
     # 配置与实用工具
     "gin-config>=0.5.0",
     "easydict>=1.10",
     "tqdm>=4.66.0",
     "pyyaml>=6.0",
     "python-dotenv>=1.2.1",
-    "pyautogen>=0.2,<0.3",
 ]
 
 [project.optional-dependencies]
 dev = [
     "ipython>=8.0.0",
     "jupyter>=1.0.0",
+    "notebook>=7.0.0",
+    "pytest>=7.0.0",
 ]
 
-agents = [
-    "pyautogen>=0.2.0",
-    "openai>=1.0.0",
-    "python-dotenv>=1.0.0",
+# Testing dependencies
+test = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+]
+
+# Documentation
+docs = [
+    "mkdocs>=1.5.0",
+    "mkdocs-material>=9.0.0",
 ]
 
 [tool.setuptools]
