@@ -222,6 +222,69 @@ class BRENDAConnector(BaseConnector):
         for idx, row in self._df.iterrows():
             yield self.to_unified_schema(row.to_dict(), int(idx))
 
+    @staticmethod
+    def _is_mutant(mutant_val: Any) -> bool:
+        """
+        Check if enzyme is a mutant (not wild-type).
+        """
+        if pd.isna(mutant_val):
+            return False
+        if not mutant_val:  # Empty string or False
+            return False
+        mutant_str = str(mutant_val).strip().upper()
+        return mutant_str and mutant_str != "WT" and mutant_str != "WILD-TYPE"
+
+    @staticmethod
+    def _parse_numeric_value(value: Any) -> Optional[float]:
+        """
+        Parse numeric value, handling ranges and scientific notation.
+
+        For ranges (e.g., '0.13 -- 0.15'), returns the midpoint.
+        For scientific notation (e.g., '8e-05'), converts to float.
+        """
+        if pd.isna(value):
+            return None
+
+        if isinstance(value, (int, float)):
+            return float(value)
+
+        if not isinstance(value, str):
+            value = str(value)
+
+        value = value.strip()
+        if not value or value.lower() == 'nan':
+            return None
+
+        try:
+            # Handle ranges like "0.13 -- 0.15"
+            if '--' in value:
+                parts = value.split('--')
+                if len(parts) == 2:
+                    try:
+                        low = float(parts[0].strip())
+                        high = float(parts[1].strip())
+                        return (low + high) / 2  # Return midpoint
+                    except ValueError:
+                        pass
+
+            # Handle ranges with dash "0.13-0.15"
+            elif '-' in value and value.count('-') == 1 and not value.startswith('-'):
+                parts = value.split('-')
+                if len(parts) == 2 and parts[0] and parts[1]:
+                    try:
+                        low = float(parts[0].strip())
+                        high = float(parts[1].strip())
+                        return (low + high) / 2
+                    except ValueError:
+                        pass
+
+            # Standard float parsing (handles scientific notation)
+            return float(value)
+
+        except (ValueError, TypeError):
+            logger.debug(f"Could not parse numeric value: {value}")
+            return None
+
     def to_unified_schema(
         self,
         record: Dict[str, Any],
@@ -236,16 +299,27 @@ class BRENDAConnector(BaseConnector):
         # Handle UniProt accessions
         accessions = record.get("accessions", "")
         uniprot_ids = []
-        if pd.notna(accessions) and accessions:
-            if isinstance(accessions, str):
+        # Check for numpy arrays FIRST (before pd.notna)
+        if hasattr(accessions, '__array__'):
+            import numpy as np
+            try:
+                arr = np.asarray(accessions)
+                uniprot_ids = [str(a).strip() for a in arr.flat if pd.notna(a) and str(a).strip()]
+            except Exception:
+                pass
+        # Handle other types
+        elif accessions is not None and not (isinstance(accessions, float) and pd.isna(accessions)):
+            # Handle strings
+            if isinstance(accessions, str) and accessions.strip():
                 uniprot_ids = [a.strip() for a in accessions.split(",") if a.strip()]
+            # Handle lists
             elif isinstance(accessions, list):
-                uniprot_ids = accessions
+                uniprot_ids = [str(a).strip() for a in accessions if pd.notna(a) and str(a).strip()]
 
-        # Parse kinetic values
-        kcat_val = record.get("turnover_number")
-        km_val = record.get("km_value")
-        kcat_km_val = record.get("kcat_km")
+        # Parse kinetic values with robust parsing
+        kcat_val = self._parse_numeric_value(record.get("turnover_number"))
+        km_val = self._parse_numeric_value(record.get("km_value"))
+        kcat_km_val = self._parse_numeric_value(record.get("kcat_km"))
 
         return {
             "id": f"BRENDA:{row_index}",
@@ -267,7 +341,7 @@ class BRENDAConnector(BaseConnector):
                 "pdb_ids": [],
                 "organism": record.get("organism_name"),
                 "mutant": record.get("mutant"),
-                "mutation_flag": bool(record.get("mutant")) and str(record.get("mutant")).upper() != "WT",
+                "mutation_flag": self._is_mutant(record.get("mutant")),
             },
             "reaction": {
                 "direction": "unknown",
@@ -280,7 +354,7 @@ class BRENDAConnector(BaseConnector):
                     "smiles": None,
                     "cid": None,
                     "brenda_id": None,
-                }] if record.get("substrate") else [],
+                }] if pd.notna(record.get("substrate")) else [],
                 "products": [],
                 "cofactors": [],
                 "reaction_smarts": None,
@@ -288,26 +362,26 @@ class BRENDAConnector(BaseConnector):
             },
             "kinetics": {
                 "kcat": {
-                    "value": float(kcat_val) if pd.notna(kcat_val) else None,
+                    "value": kcat_val,  # Already parsed as float or None
                     "unit": "s^-1",
-                    "raw_text": str(kcat_val) if pd.notna(kcat_val) else None,
+                    "raw_text": str(record.get("turnover_number")) if pd.notna(record.get("turnover_number")) else None,
                     "condition_id": f"cond_BRENDA_{row_index}",
                 },
                 "km": {
-                    "value": float(km_val) if pd.notna(km_val) else None,
+                    "value": km_val,  # Already parsed as float or None
                     "unit": "mM",
-                    "raw_text": str(km_val) if pd.notna(km_val) else None,
+                    "raw_text": str(record.get("km_value")) if pd.notna(record.get("km_value")) else None,
                     "condition_id": f"cond_BRENDA_{row_index}",
                 },
                 "kcat_over_km": {
-                    "value": float(kcat_km_val) if pd.notna(kcat_km_val) else None,
+                    "value": kcat_km_val,  # Already parsed as float or None
                     "unit": "s^-1 mM^-1",
                 },
             },
             "conditions": {
                 "id": f"cond_BRENDA_{row_index}",
-                "pH": float(record.get("pH")) if pd.notna(record.get("pH")) else None,
-                "temperature": float(record.get("temperature")) if pd.notna(record.get("temperature")) else None,
+                "pH": self._parse_numeric_value(record.get("pH")),
+                "temperature": self._parse_numeric_value(record.get("temperature")),
                 "temperature_unit": "C",
                 "ionic_strength": None,
                 "buffer": None,

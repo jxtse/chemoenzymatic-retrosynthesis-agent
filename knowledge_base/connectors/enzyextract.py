@@ -62,24 +62,98 @@ class EnzyExtractConnector(BaseConnector):
 
     @staticmethod
     def _parse_ec_list(ec_val: Any) -> List[str]:
-        """Parse EC number field (may be string repr of list)."""
-        if pd.isna(ec_val):
+        """Parse EC number field (may be string repr of list or numpy array)."""
+        # Handle numpy arrays FIRST (before pd.isna check)
+        if hasattr(ec_val, '__array__'):  # numpy array or similar
+            import numpy as np
+            try:
+                arr = np.asarray(ec_val)
+                return [str(e).strip() for e in arr.flat if pd.notna(e) and str(e).strip()]
+            except Exception:
+                pass
+
+        # Now check for None/NaN
+        if ec_val is None or (isinstance(ec_val, float) and pd.isna(ec_val)):
             return []
+
+        # Handle Python lists
         if isinstance(ec_val, list):
-            return [str(e).strip() for e in ec_val if e and str(e).strip()]
+            return [str(e).strip() for e in ec_val if pd.notna(e) and str(e).strip()]
+
+        # Handle strings
         if isinstance(ec_val, str):
             text = ec_val.strip()
             if text.startswith("[") and text.endswith("]"):
                 try:
                     parsed = ast.literal_eval(text)
                     if isinstance(parsed, list):
-                        return [str(e).strip() for e in parsed if e]
+                        return [str(e).strip() for e in parsed if pd.notna(e)]
                 except (ValueError, SyntaxError):
                     pass
             # Fallback: split on commas/semicolons
             parts = [p.strip() for p in text.replace(";", ",").split(",")]
             return [p for p in parts if p and p.lower() != "nan"]
+
         return []
+
+    @staticmethod
+    def _is_mutant(mutant_val: Any) -> bool:
+        """
+        Check if enzyme is a mutant (not wild-type).
+        """
+        if pd.isna(mutant_val):
+            return False
+        if not mutant_val:  # Empty string or False
+            return False
+        mutant_str = str(mutant_val).strip().upper()
+        return mutant_str and mutant_str != "WT" and mutant_str != "WILD-TYPE"
+
+    @staticmethod
+    def _parse_numeric_value(value: Any) -> Optional[float]:
+        """
+        Parse numeric value, handling various formats.
+
+        Similar to BRENDA's parser but for EnzyExtract data.
+        """
+        if pd.isna(value):
+            return None
+
+        if isinstance(value, (int, float)):
+            return float(value)
+
+        if not isinstance(value, str):
+            value = str(value)
+
+        value = value.strip()
+        if not value or value.lower() == 'nan':
+            return None
+
+        try:
+            # Handle ranges like "0.13 -- 0.15" or "0.13-0.15"
+            if '--' in value:
+                parts = value.split('--')
+                if len(parts) == 2:
+                    try:
+                        low = float(parts[0].strip())
+                        high = float(parts[1].strip())
+                        return (low + high) / 2
+                    except ValueError:
+                        pass
+            elif '-' in value and value.count('-') == 1 and not value.startswith('-'):
+                parts = value.split('-')
+                if len(parts) == 2 and parts[0] and parts[1]:
+                    try:
+                        low = float(parts[0].strip())
+                        high = float(parts[1].strip())
+                        return (low + high) / 2
+                    except ValueError:
+                        pass
+
+            # Standard float parsing (handles scientific notation)
+            return float(value)
+
+        except (ValueError, TypeError):
+            return None
 
     def disconnect(self) -> None:
         """Clear loaded data."""
@@ -189,6 +263,15 @@ class EnzyExtractConnector(BaseConnector):
         for idx, row in self._df.iterrows():
             yield self.to_unified_schema(row.to_dict(), int(idx))
 
+    @staticmethod
+    def _ensure_json_serializable(val: Any) -> Any:
+        """Ensure value is JSON serializable (convert numpy arrays to lists)."""
+        if hasattr(val, '__array__'):
+            import numpy as np
+            arr = np.asarray(val)
+            return arr.tolist()
+        return val
+
     def to_unified_schema(
         self,
         record: Dict[str, Any],
@@ -199,14 +282,14 @@ class EnzyExtractConnector(BaseConnector):
 
         ecs = self._parse_ec_list(record.get("enzyme_ecs"))
 
-        # Parse UniProt IDs
-        uniprot_ids = self._parse_ec_list(record.get("uniprot"))
-        pdb_ids = self._parse_ec_list(record.get("pdb"))
+        # Parse UniProt IDs and PDB IDs (ensure they're lists, not arrays)
+        uniprot_ids = list(self._parse_ec_list(record.get("uniprot")))
+        pdb_ids = list(self._parse_ec_list(record.get("pdb")))
 
         # Parse cofactors
         cofactors = []
         cofactor_val = record.get("cofactors")
-        if pd.notna(cofactor_val) and cofactor_val:
+        if pd.notna(cofactor_val):
             cof_list = self._parse_ec_list(cofactor_val)
             for cof in cof_list:
                 cofactors.append({
@@ -234,27 +317,27 @@ class EnzyExtractConnector(BaseConnector):
             "ec_numbers": ecs,
             "primary_ec": ecs[0] if ecs else None,
             "enzyme": {
-                "name": record.get("enzyme"),
-                "name_full": record.get("enzyme_full"),
+                "name": self._ensure_json_serializable(record.get("enzyme")),
+                "name_full": self._ensure_json_serializable(record.get("enzyme_full")),
                 "uniprot_ids": uniprot_ids,
-                "sequence": record.get("sequence"),
+                "sequence": self._ensure_json_serializable(record.get("sequence")),
                 "pdb_ids": pdb_ids,
-                "organism": record.get("organism"),
-                "mutant": record.get("mutant"),
-                "mutation_flag": bool(record.get("mutant")) and str(record.get("mutant")).upper() != "WT",
+                "organism": self._ensure_json_serializable(record.get("organism")),
+                "mutant": self._ensure_json_serializable(record.get("mutant")),
+                "mutation_flag": self._is_mutant(record.get("mutant")),
             },
             "reaction": {
                 "direction": "unknown",
                 "equation_text": None,
                 "substrates": [{
-                    "name": record.get("substrate"),
-                    "name_full": record.get("substrate_full"),
+                    "name": self._ensure_json_serializable(record.get("substrate")),
+                    "name_full": self._ensure_json_serializable(record.get("substrate_full")),
                     "role": "substrate",
                     "stoichiometry": 1.0,
-                    "smiles": record.get("smiles"),
-                    "cid": record.get("cid"),
-                    "brenda_id": record.get("brenda_id"),
-                }] if record.get("substrate") else [],
+                    "smiles": self._ensure_json_serializable(record.get("smiles")),
+                    "cid": self._ensure_json_serializable(record.get("cid")),
+                    "brenda_id": self._ensure_json_serializable(record.get("brenda_id")),
+                }] if pd.notna(record.get("substrate")) else [],
                 "products": [],
                 "cofactors": cofactors,
                 "reaction_smarts": None,
@@ -262,34 +345,34 @@ class EnzyExtractConnector(BaseConnector):
             },
             "kinetics": {
                 "kcat": {
-                    "value": float(kcat_val) if pd.notna(kcat_val) else None,
+                    "value": self._parse_numeric_value(kcat_val),
                     "unit": "s^-1",
-                    "raw_text": record.get("kcat"),
+                    "raw_text": self._ensure_json_serializable(record.get("kcat")),
                     "condition_id": f"cond_EnzyExtract_{row_index}",
                 },
                 "km": {
-                    "value": float(km_val) if pd.notna(km_val) else None,
+                    "value": self._parse_numeric_value(km_val),
                     "unit": "mM",
-                    "raw_text": record.get("km"),
+                    "raw_text": self._ensure_json_serializable(record.get("km")),
                     "condition_id": f"cond_EnzyExtract_{row_index}",
                 },
                 "kcat_over_km": {
-                    "value": float(kcat_km_val) if pd.notna(kcat_km_val) else None,
+                    "value": self._parse_numeric_value(kcat_km_val),
                     "unit": "s^-1 mM^-1",
                 },
             },
             "conditions": {
                 "id": f"cond_EnzyExtract_{row_index}",
-                "pH": float(record.get("pH")) if pd.notna(record.get("pH")) else None,
-                "temperature": float(record.get("temperature")) if pd.notna(record.get("temperature")) else None,
+                "pH": self._parse_numeric_value(record.get("pH")),
+                "temperature": self._parse_numeric_value(record.get("temperature")),
                 "temperature_unit": "C",
                 "ionic_strength": None,
                 "buffer": None,
-                "comments": record.get("solution"),
+                "comments": self._ensure_json_serializable(record.get("solution")),
             },
             "text": {
-                "descriptor": record.get("descriptor"),
-                "canonical_description": record.get("canonical"),
-                "notes": record.get("other"),
+                "descriptor": self._ensure_json_serializable(record.get("descriptor")),
+                "canonical_description": self._ensure_json_serializable(record.get("canonical")),
+                "notes": self._ensure_json_serializable(record.get("other")),
             },
         }

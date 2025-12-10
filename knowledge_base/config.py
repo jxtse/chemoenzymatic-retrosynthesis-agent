@@ -82,9 +82,16 @@ class KnowledgeBaseConfig:
         for name in source_names:
             if name in data:
                 src_data = data[name]
+                # Handle relative paths by prepending data_dir
+                src_path = None
+                if src_data.get("path"):
+                    src_path = Path(src_data["path"])
+                    # If path is relative and doesn't exist, try prepending data_dir
+                    if not src_path.is_absolute() and not src_path.exists():
+                        src_path = config.data_dir / src_data["path"]
                 src_config = DataSourceConfig(
                     enabled=src_data.get("enabled", True),
-                    path=Path(src_data["path"]) if src_data.get("path") else None,
+                    path=src_path,
                     api_url=src_data.get("api_url"),
                     api_key=src_data.get("api_key") or os.environ.get(f"{name.upper()}_API_KEY"),
                     cache_dir=Path(src_data["cache_dir"]) if src_data.get("cache_dir") else None,
