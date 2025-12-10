@@ -46,3 +46,6 @@ docs
 datasets/aizynthfinder/full_uspto_03_05_19_rollout_policy.hdf5
 datasets/bkms/policy_model/variables/variables.data-00000-of-00001
 datasets/buyability/
+
+AGENTS.md
+CLAUDE.md

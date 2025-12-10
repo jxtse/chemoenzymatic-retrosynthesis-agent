@@ -219,6 +219,12 @@ def main():
     )
 
     parser.add_argument(
+        '--prompt',
+        type=str,
+        help='自定义系统提示词文件路径 (默认: system_prompts/retrosynthesis_agent_prompt.txt)'
+    )
+
+    parser.add_argument(
         '--target',
         type=str,
         help='目标分子 (名称或SMILES)'
@@ -322,7 +328,8 @@ def main():
         llm_config=llm_config,
         name="化酶逆合成规划师",
         enable_logging=enable_session_log,
-        log_dir=session_log_dir
+        log_dir=session_log_dir,
+        system_prompt_path=args.prompt,
     )
     logger.info("Agent初始化完成")
 
