@@ -9,15 +9,40 @@ wheels/
 # Virtual environments
 .venv
 
+# Environment variables
 .env
 
-*.jsonl
-node-v24.11.1-linux-x64
-.claude-code-router
+# Cache directories
+.kb_cache/
+.cache/
 
-# Large data files and model checkpoints
-RetroBioCat/building_blocks.db
-RetroBioCat/*.db
-READRetro/
-RetroBioCat/*.xlsx
+# Output files
+knowledge_base_output/*.jsonl
+knowledge_base_output/*.json
+
+# Temporary and test files
+myapp/
 *.db
+
+# Large data files (keep structure, ignore data)
+datasets/*.parquet
+datasets/*.csv
+datasets/*.tsv
+datasets/RetroBioCat/*.xlsx
+datasets/RetroBioCat/*.db
+
+# Tools
+node-v24.11.1-linux-x64/
+.claude-code-router/
+
+# Model checkpoints and large files
+READRetro/
+logs
+archive
+docs
+.coding
+
+# Large model and data files (>100MB)
+datasets/aizynthfinder/full_uspto_03_05_19_rollout_policy.hdf5
+datasets/bkms/policy_model/variables/variables.data-00000-of-00001
+datasets/buyability/
