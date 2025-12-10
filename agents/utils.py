@@ -43,7 +43,7 @@ def name_to_smiles(compound_name: str) -> str:
         result = {
             "success": True,
             "query": compound_name,
-            "smiles": compound.isomeric_smiles or compound.canonical_smiles,
+            "smiles": compound.canonical_smiles,  # Use canonical_smiles instead of deprecated isomeric_smiles
             "iupac_name": compound.iupac_name,
             "molecular_formula": compound.molecular_formula,
             "molecular_weight": compound.molecular_weight,

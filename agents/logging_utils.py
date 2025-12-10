@@ -96,7 +96,15 @@ class AgentSessionLogger:
             f"输入: {self._truncate_dict(inputs, 100)}"
         )
 
-        if error:
+        # 记录输出结果到日志文件（完整信息）
+        if error is None:
+            output_str = json.dumps(self._serialize_output(outputs), ensure_ascii=False, indent=2)
+            if len(output_str) > 1000:
+                # 如果输出过长，记录摘要
+                logger.info(f"   输出: {self._truncate_str(output_str, 500)}")
+            else:
+                logger.info(f"   输出: {output_str}")
+        else:
             logger.error(f"   错误: {error}")
 
     def log_llm_message(
