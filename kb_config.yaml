@@ -1,0 +1,104 @@
+# Knowledge Base Configuration
+# Data files are in datasets/ directory
+
+data_dir: datasets
+output_dir: knowledge_base_output
+cache_dir: .kb_cache
+
+# Local data sources (your files)
+bkms:
+  enabled: true
+  path: Reactions_BKMS.csv
+  api_url: null
+  api_key: null
+  cache_dir: null
+  batch_size: 1000
+  rate_limit: 1.0
+  extra: {}
+
+brenda:
+  enabled: true
+  path: brenda_kcat_v3.parquet
+  api_url: https://www.brenda-enzymes.org/soap/brenda_zeep.wsdl
+  api_key: null
+  cache_dir: null
+  batch_size: 1000
+  rate_limit: 1.0
+  extra: {}
+
+enzyextract:
+  enabled: true
+  path: EnzyExtractDB_176463.parquet
+  api_url: null
+  api_key: null
+  cache_dir: null
+  batch_size: 1000
+  rate_limit: 1.0
+  extra: {}
+
+# API-based sources (disabled by default to speed up build)
+kegg:
+  enabled: false  # Enable if you want KEGG data (slow due to rate limiting)
+  path: null
+  api_url: https://rest.kegg.jp
+  api_key: null
+  cache_dir: null
+  batch_size: 100
+  rate_limit: 0.2  # 5 seconds between requests
+  extra: {}
+
+uniprot:
+  enabled: false  # Enable if you want protein sequences
+  path: null
+  api_url: https://rest.uniprot.org
+  api_key: null
+  cache_dir: null
+  batch_size: 100
+  rate_limit: 1.0
+  extra: {}
+
+pubchem:
+  enabled: false  # Enable if you want compound data
+  path: null
+  api_url: https://pubchem.ncbi.nlm.nih.gov/rest/pug
+  api_key: null
+  cache_dir: null
+  batch_size: 100
+  rate_limit: 0.2  # 5 requests per second
+  extra: {}
+
+zinc:
+  enabled: false  # Not implemented yet
+  path: null
+  api_url: https://zinc.docking.org/api
+  api_key: null
+  cache_dir: null
+  batch_size: 1000
+  rate_limit: 1.0
+  extra: {}
+
+uspto:
+  enabled: false  # Not implemented yet
+  path: null
+  api_url: null
+  api_key: null
+  cache_dir: null
+  batch_size: 1000
+  rate_limit: 1.0
+  extra: {}
+
+retrobiocat:
+  enabled: false  # Not implemented yet
+  path: null
+  api_url: null
+  api_key: null
+  cache_dir: null
+  batch_size: 1000
+  rate_limit: 1.0
+  extra: {}
+parallel_workers: 4
+chunk_size: 10000
+normalize_smiles: true
+validate_ec_numbers: true
+output_format: jsonl
+compress_output: false
